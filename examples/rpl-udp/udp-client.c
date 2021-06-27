@@ -12,7 +12,7 @@
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
 
-#define SEND_INTERVAL		  (60 * CLOCK_SECOND)
+#define SEND_INTERVAL		  (10 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_conn;
 
@@ -30,8 +30,16 @@ udp_rx_callback(struct simple_udp_connection *c,
          uint16_t datalen)
 {
 
-  LOG_INFO("Received response '%.*s' from ", datalen, (char *) data);
-  LOG_INFO_6ADDR(sender_addr);
+  //LOG_INFO("Received response '%.*s' from ", datalen, (char *) data);
+LOG_INFO("Received Server message '%.*s' from ",datalen, (char *) data);  
+LOG_INFO_6ADDR(sender_addr);
+
+	radio_value_t value,v2;
+	NETSTACK_RADIO.get_value(RADIO_PARAM_RSSI,&value);
+	printf("Received Rssi => %d\n",value);
+	NETSTACK_RADIO.get_value(RADIO_PARAM_LAST_RSSI,&v2);
+	printf("Received last RSSI => %d\n",v2);
+
 #if LLSEC802154_CONF_ENABLED
   LOG_INFO_(" LLSEC LV:%d", uipbuf_get_attr(UIPBUF_ATTR_LLSEC_LEVEL));
 #endif
@@ -61,7 +69,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
       LOG_INFO("Sending request %u to ", count);
       LOG_INFO_6ADDR(&dest_ipaddr);
       LOG_INFO_("\n");
-      snprintf(str, sizeof(str), "hello %d", count);
+      snprintf(str, sizeof(str), "Hi %d", count);
       simple_udp_sendto(&udp_conn, str, strlen(str), &dest_ipaddr);
       count++;
     } else {

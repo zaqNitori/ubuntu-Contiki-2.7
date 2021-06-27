@@ -160,6 +160,7 @@ PROCESS_THREAD(webserver_nogui_process, ev, data)
 {
   PROCESS_BEGIN();
 
+NETSTACK_ROUTING.root_start();
   httpd_init();
 
   while(1) {

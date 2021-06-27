@@ -34,52 +34,18 @@
 
 /* Log configuration */
 #include "sys/log.h"
-#include "net/ipv6/simple-udp.h"
-#include "net/netstack.h"
-#include "net/packetbuf.h"
-
 #define LOG_MODULE "RPL BR"
 #define LOG_LEVEL LOG_LEVEL_INFO
-
-#define WITH_SERVER_REPLY  0
-#define UDP_CLIENT_PORT	8765
-#define UDP_SERVER_PORT	5678
-
-static struct simple_udp_connection udp_conn;
 
 /* Declare and auto-start this file's process */
 PROCESS(contiki_ng_br, "Contiki-NG Border Router");
 AUTOSTART_PROCESSES(&contiki_ng_br);
 
 /*---------------------------------------------------------------------------*/
-static void
-udp_rx_callback(struct simple_udp_connection *c,
-         const uip_ipaddr_t *sender_addr,
-         uint16_t sender_port,
-         const uip_ipaddr_t *receiver_addr,
-         uint16_t receiver_port,
-         const uint8_t *data,
-         uint16_t datalen)
-{
-  LOG_INFO("Received request '%.*s' from ", datalen, (char *) data);
-  LOG_INFO_6ADDR(sender_addr);
-  LOG_INFO_("\n");
-
-radio_value_t value;
-  NETSTACK_RADIO.get_value(RADIO_PARAM_RSSI,&value);
-  printf("Received packetbuf Rssi => %d\n",(signed short)packetbuf_attr(PACKETBUF_ATTR_RSSI));
-
-#if WITH_SERVER_REPLY
-  /* send back the same string to the client as an echo reply */
-  LOG_INFO("Sending response.\n");
-  simple_udp_sendto(&udp_conn, data, datalen, sender_addr);
-#endif /* WITH_SERVER_REPLY */
-}
-
-/*---------------------------------------------------------------------------*/
 PROCESS_THREAD(contiki_ng_br, ev, data)
 {
   PROCESS_BEGIN();
+
 
 #if BORDER_ROUTER_CONF_WEBSERVER
   PROCESS_NAME(webserver_nogui_process);
@@ -87,9 +53,6 @@ PROCESS_THREAD(contiki_ng_br, ev, data)
 #endif /* BORDER_ROUTER_CONF_WEBSERVER */
 
   LOG_INFO("Contiki-NG Border Router started\n");
-
-simple_udp_register(&udp_conn, UDP_SERVER_PORT, NULL,
-                      UDP_CLIENT_PORT, udp_rx_callback);
 
   PROCESS_END();
 }

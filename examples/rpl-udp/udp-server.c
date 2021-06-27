@@ -31,14 +31,17 @@
 #include "net/routing/routing.h"
 #include "net/netstack.h"
 #include "net/ipv6/simple-udp.h"
+#include "random.h"
 
 #include "sys/log.h"
 #define LOG_MODULE "App"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-#define WITH_SERVER_REPLY  1
+#define WITH_SERVER_REPLY  0
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
+
+#define SEND_INTERVAL		  (10 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_conn;
 
@@ -57,6 +60,13 @@ udp_rx_callback(struct simple_udp_connection *c,
   LOG_INFO("Received request '%.*s' from ", datalen, (char *) data);
   LOG_INFO_6ADDR(sender_addr);
   LOG_INFO_("\n");
+
+	radio_value_t value,v2;
+	NETSTACK_RADIO.get_value(RADIO_PARAM_RSSI,&value);
+	printf("Received Rssi => %d\n",value);
+	NETSTACK_RADIO.get_value(RADIO_PARAM_LAST_RSSI,&v2);
+	printf("Received last RSSI => %d\n",v2);
+
 #if WITH_SERVER_REPLY
   /* send back the same string to the client as an echo reply */
   LOG_INFO("Sending response.\n");
@@ -66,6 +76,12 @@ udp_rx_callback(struct simple_udp_connection *c,
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(udp_server_process, ev, data)
 {
+
+	uip_ipaddr_t addr;
+	static struct etimer periodic_timer;
+	static char str[32];
+	static unsigned count;
+
   PROCESS_BEGIN();
 
   /* Initialize DAG root */
@@ -75,6 +91,24 @@ PROCESS_THREAD(udp_server_process, ev, data)
   simple_udp_register(&udp_conn, UDP_SERVER_PORT, NULL,
                       UDP_CLIENT_PORT, udp_rx_callback);
 
+	etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL);
+
+	while(1)
+	{
+		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+		LOG_INFO("Sending message");
+	      LOG_INFO_("\n");
+	      snprintf(str, sizeof(str), "Server msg %d", count);
+		uip_create_linklocal_allnodes_mcast(&addr);
+    		simple_udp_sendto(&udp_conn, str, strlen(str), &addr);
+		count++;
+
+		etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL); 
+	}
+
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
+
+
+
