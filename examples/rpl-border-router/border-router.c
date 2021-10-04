@@ -36,16 +36,14 @@
 #include "sys/log.h"
 #include "net/ipv6/simple-udp.h"
 #include "net/netstack.h"
-#include "net/packetbuf.h"
-
 #define LOG_MODULE "RPL BR"
 #define LOG_LEVEL LOG_LEVEL_INFO
+#include "net/routing/rpl-location/rpl-loc.h"
 
-#define WITH_SERVER_REPLY  0
-#define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
+static struct simple_udp_connection udp_connSS;
+#define SEND_INTERVAL		  (30 * CLOCK_SECOND)
 
-static struct simple_udp_connection udp_conn;
 
 /* Declare and auto-start this file's process */
 PROCESS(contiki_ng_br, "Contiki-NG Border Router");
@@ -53,7 +51,7 @@ AUTOSTART_PROCESSES(&contiki_ng_br);
 
 /*---------------------------------------------------------------------------*/
 static void
-udp_rx_callback(struct simple_udp_connection *c,
+udp_rx_SS_callback(struct simple_udp_connection *c,
          const uip_ipaddr_t *sender_addr,
          uint16_t sender_port,
          const uip_ipaddr_t *receiver_addr,
@@ -61,35 +59,47 @@ udp_rx_callback(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
-  LOG_INFO("Received request '%.*s' from ", datalen, (char *) data);
-  LOG_INFO_6ADDR(sender_addr);
+
+rpl_loc_msg_t22 msg = *(rpl_loc_msg_t22 *)data;
+
+  LOG_INFO("Received msg => %d from ", msg.msg);
+  LOG_INFO_6ADDR(&msg.addr);
   LOG_INFO_("\n");
 
-radio_value_t value;
-  NETSTACK_RADIO.get_value(RADIO_PARAM_RSSI,&value);
-  printf("Received packetbuf Rssi => %d\n",(signed short)packetbuf_attr(PACKETBUF_ATTR_RSSI));
-
-#if WITH_SERVER_REPLY
-  /* send back the same string to the client as an echo reply */
-  LOG_INFO("Sending response.\n");
-  simple_udp_sendto(&udp_conn, data, datalen, sender_addr);
-#endif /* WITH_SERVER_REPLY */
 }
+
 
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(contiki_ng_br, ev, data)
 {
+static struct etimer periodic_timer;
+uip_ipaddr_t addr;
+static int msg = 1;
+
   PROCESS_BEGIN();
+
 
 #if BORDER_ROUTER_CONF_WEBSERVER
   PROCESS_NAME(webserver_nogui_process);
   process_start(&webserver_nogui_process, NULL);
 #endif /* BORDER_ROUTER_CONF_WEBSERVER */
 
+
+simple_udp_register(&udp_connSS, UDP_SERVER_PORT, NULL,
+                      UDP_SERVER_PORT, udp_rx_SS_callback);
+
   LOG_INFO("Contiki-NG Border Router started\n");
 
-simple_udp_register(&udp_conn, UDP_SERVER_PORT, NULL,
-                      UDP_CLIENT_PORT, udp_rx_callback);
+etimer_set(&periodic_timer, SEND_INTERVAL);
+
+	while(1)
+	{
+		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
+		uip_create_linklocal_allnodes_mcast(&addr);
+	    	simple_udp_sendto(&udp_connSS, &msg, sizeof(msg), &addr);
+		printf(" send addr\n");
+		etimer_set(&periodic_timer, SEND_INTERVAL); 
+	}
 
   PROCESS_END();
 }

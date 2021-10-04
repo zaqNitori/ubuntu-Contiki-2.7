@@ -15,6 +15,7 @@
 #define SEND_INTERVAL		  (10 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_conn;
+static uip_ipaddr_t BRaddr;
 
 /*---------------------------------------------------------------------------*/
 PROCESS(udp_client_process, "UDP client");
@@ -29,16 +30,28 @@ udp_rx_callback(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
+	if(*(int *)data == 1)
+	{
+		BRaddr = *sender_addr;
+	}
+	else
+	{
+	  //LOG_INFO("Received response '%.*s' from ", datalen, (char *) data);
+	LOG_INFO("Received Server message '%.*s' from ",datalen, (char *) data);  
+	LOG_INFO_6ADDR(sender_addr);
 
-  //LOG_INFO("Received response '%.*s' from ", datalen, (char *) data);
-LOG_INFO("Received Server message '%.*s' from ",datalen, (char *) data);  
-LOG_INFO_6ADDR(sender_addr);
+		radio_value_t v2;
+		NETSTACK_RADIO.get_value(RADIO_PARAM_LAST_RSSI,&v2);
+		printf("Received last RSSI => %d\n",v2);
+		
+		simple_udp_sendto(&udp_conn, &v2, sizeof(v2), &BRaddr);
+	}
 
-	radio_value_t value,v2;
-	NETSTACK_RADIO.get_value(RADIO_PARAM_RSSI,&value);
-	printf("Received Rssi => %d\n",value);
-	NETSTACK_RADIO.get_value(RADIO_PARAM_LAST_RSSI,&v2);
-	printf("Received last RSSI => %d\n",v2);
+		LOG_INFO_6ADDR(sender_addr);
+		printf("\n\n");
+
+
+
 
 #if LLSEC802154_CONF_ENABLED
   LOG_INFO_(" LLSEC LV:%d", uipbuf_get_attr(UIPBUF_ATTR_LLSEC_LEVEL));
@@ -52,6 +65,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
   static struct etimer periodic_timer;
   static unsigned count;
   static char str[32];
+	static int num=5;
   uip_ipaddr_t dest_ipaddr;
 
   PROCESS_BEGIN();
@@ -59,6 +73,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
   /* Initialize UDP connection */
   simple_udp_register(&udp_conn, UDP_CLIENT_PORT, NULL,
                       UDP_SERVER_PORT, udp_rx_callback);
+
 
   etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL);
   while(1) {
@@ -70,7 +85,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
       LOG_INFO_6ADDR(&dest_ipaddr);
       LOG_INFO_("\n");
       snprintf(str, sizeof(str), "Hi %d", count);
-      simple_udp_sendto(&udp_conn, str, strlen(str), &dest_ipaddr);
+      simple_udp_sendto(&udp_conn, &num, sizeof(num), &dest_ipaddr);
       count++;
     } else {
       LOG_INFO("Not reachable yet\n");
