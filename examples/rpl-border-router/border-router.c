@@ -60,9 +60,9 @@ udp_rx_SS_callback(struct simple_udp_connection *c,
          uint16_t datalen)
 {
 
-rpl_loc_msg_t22 msg = *(rpl_loc_msg_t22 *)data;
+rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
 
-  LOG_INFO("Received msg => %d from ", msg.msg);
+  LOG_INFO("Received msg => %d from ", msg.x);
   LOG_INFO_6ADDR(&msg.addr);
   LOG_INFO_("\n");
 

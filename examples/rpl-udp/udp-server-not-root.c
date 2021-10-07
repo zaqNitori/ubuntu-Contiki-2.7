@@ -42,7 +42,7 @@
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
 
-#define SEND_INTERVAL		  (30 * CLOCK_SECOND)
+#define SEND_INTERVAL		  (10 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_conn;
 static struct simple_udp_connection udp_connSS;
@@ -80,6 +80,9 @@ udp_rx_callback(struct simple_udp_connection *c,
 {
 
 int msg = *(int *)data;
+  LOG_INFO("Received msg => %d from ", msg);
+  LOG_INFO_6ADDR(sender_addr);
+  LOG_INFO_("\n");
 if(ok)
 {
 rpl_loc_msg_t msg2;
@@ -103,15 +106,12 @@ PROCESS_THREAD(udp_server_process, ev, data)
 	static struct etimer periodic_timer;
 	static char str[32];
 	static unsigned count;
-	rpl_loc_msg_t msg;
-	msg.x = msg.y = msg.bc_time = 0;
-	msg.Msg_Type = rpl_loc_t.Location_Info;
-	
+	//static int num = 1;
 
   PROCESS_BEGIN();
 
   /* Initialize DAG root */
-  NETSTACK_ROUTING.root_start();
+  //NETSTACK_ROUTING.root_start();
 
   /* Initialize UDP connection */
   simple_udp_register(&udp_conn, UDP_SERVER_PORT, NULL,
