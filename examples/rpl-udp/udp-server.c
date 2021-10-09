@@ -42,9 +42,9 @@
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
 
-#define SEND_INTERVAL		  (30 * CLOCK_SECOND)
+#define SEND_INTERVAL		  (20 * CLOCK_SECOND)
 
-static struct simple_udp_connection udp_conn;
+static struct simple_udp_connection udp_connSC;
 static struct simple_udp_connection udp_connSS;
 uip_ipaddr_t BRaddr;
 static int ok = 0;
@@ -63,14 +63,14 @@ udp_rx_SS_callback(struct simple_udp_connection *c,
          uint16_t datalen)
 {
 
-  BRaddr = *sender_addr;
-ok = 1;
+	BRaddr = *sender_addr;
+	ok = 1;
 
 }
 
 /*---------------------------------------------------------------------------*/
 static void
-udp_rx_callback(struct simple_udp_connection *c,
+udp_rx_SC_callback(struct simple_udp_connection *c,
          const uip_ipaddr_t *sender_addr,
          uint16_t sender_port,
          const uip_ipaddr_t *receiver_addr,
@@ -79,20 +79,18 @@ udp_rx_callback(struct simple_udp_connection *c,
          uint16_t datalen)
 {
 
-int msg = *(int *)data;
-if(ok)
-{
-rpl_loc_msg_t msg2;
-msg2.x = msg;
-msg2.addr = *sender_addr;
-simple_udp_sendto(&udp_connSS, &msg2, sizeof(msg2), &BRaddr);
-}
+	rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
+	if(ok)
+	{
+		msg.addr = *sender_addr;
+		simple_udp_sendto(&udp_connSS, &msg, sizeof(msg), &BRaddr);
+	}
 
-#if WITH_SERVER_REPLY
-  /* send back the same string to the client as an echo reply */
-  LOG_INFO("Sending response.\n");
-  simple_udp_sendto(&udp_conn, data, datalen, sender_addr);
-#endif /* WITH_SERVER_REPLY */
+	#if WITH_SERVER_REPLY
+		/* send back the same string to the client as an echo reply */
+		LOG_INFO("Sending response.\n");
+		simple_udp_sendto(&udp_conn, data, datalen, sender_addr);
+	#endif /* WITH_SERVER_REPLY */
 }
 
 /*---------------------------------------------------------------------------*/
@@ -101,40 +99,36 @@ PROCESS_THREAD(udp_server_process, ev, data)
 
 	uip_ipaddr_t addr;
 	static struct etimer periodic_timer;
-	static char str[32];
-	static unsigned count;
 	rpl_loc_msg_t msg;
 	msg.x = msg.y = msg.bc_time = 0;
-	msg.Msg_Type = rpl_loc_t.Location_Info;
+	msg.Msg_Type = Location_Info;
 	
 
-  PROCESS_BEGIN();
+	PROCESS_BEGIN();
 
-  /* Initialize DAG root */
-  NETSTACK_ROUTING.root_start();
+	/* Initialize DAG root */
+	NETSTACK_ROUTING.root_start();
 
-  /* Initialize UDP connection */
-  simple_udp_register(&udp_conn, UDP_SERVER_PORT, NULL,
-                      UDP_CLIENT_PORT, udp_rx_callback);
-simple_udp_register(&udp_connSS, UDP_SERVER_PORT, NULL,
-                      UDP_SERVER_PORT, udp_rx_SS_callback);
+	/* Initialize UDP connection */
+	simple_udp_register(&udp_connSC, UDP_SERVER_PORT, NULL,
+		              UDP_CLIENT_PORT, udp_rx_SC_callback);
+	simple_udp_register(&udp_connSS, UDP_SERVER_PORT, NULL,
+		              UDP_SERVER_PORT, udp_rx_SS_callback);
 
 	etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL);
 
 	while(1)
 	{
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-		LOG_INFO("Sending message");
-	      LOG_INFO_("\n");
-	      snprintf(str, sizeof(str), "Server msg %d", count);
+		LOG_INFO("Sending message\n");
+
 		uip_create_linklocal_allnodes_mcast(&addr);
-    		//simple_udp_sendto(&udp_conn, &num, sizeof(num), &addr);
-		count++;
+			simple_udp_sendto(&udp_connSC, &msg, sizeof(msg), &addr);
 
 		etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL); 
 	}
 
-  PROCESS_END();
+	PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
 
