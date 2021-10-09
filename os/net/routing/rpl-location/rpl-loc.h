@@ -9,7 +9,7 @@ typedef enum
 
 typedef struct
 {
-  int Msg_Type;
+  rpl_loc_t Msg_Type;
   int x;	
   int y;
   int bc_time;	
@@ -17,6 +17,7 @@ typedef struct
 }rpl_loc_msg_t;
 
 uip_ipaddr_t BRaddr;
+short start = 0;
 int loc_x;
 int loc_y;
 int bc_time;
