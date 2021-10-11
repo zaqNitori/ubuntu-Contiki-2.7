@@ -42,7 +42,7 @@
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
 
-#define SEND_INTERVAL		  (20 * CLOCK_SECOND)
+#define SEND_INTERVAL		  (60 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_connSC;
 static struct simple_udp_connection udp_connSS;
@@ -82,8 +82,11 @@ udp_rx_SC_callback(struct simple_udp_connection *c,
 	rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
 	if(ok)
 	{
-		msg.addr = *sender_addr;
-		simple_udp_sendto(&udp_connSS, &msg, sizeof(msg), &BRaddr);
+		if(msg.Msg_Type == Location_Info_From_Client)
+		{
+			msg.addr = *sender_addr;
+			simple_udp_sendto(&udp_connSS, &msg, sizeof(msg), &BRaddr);
+		}
 	}
 
 	#if WITH_SERVER_REPLY

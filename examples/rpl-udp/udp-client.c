@@ -13,7 +13,7 @@
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
 
-#define SEND_REQUEST_INFO_INTERVAL (20 * CLOCK_SECOND)
+#define SEND_MASS_SPRING_REQUEST_INFO_INTERVAL (20 * CLOCK_SECOND)
 #define SEND_LOCATION_INFO_TO_SERVER_INTERVAL (30 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_connCS;
@@ -22,6 +22,30 @@ static struct simple_udp_connection udp_connCC;
 /*---------------------------------------------------------------------------*/
 PROCESS(udp_client_process, "UDP client");
 AUTOSTART_PROCESSES(&udp_client_process);
+/*---------------------------------------------------------------------------*/
+static int mass_spring_model_localization()
+{
+	return 1;
+}
+/*---------------------------------------------------------------------------*/
+static int 
+Do_Mass_Spring_Model_Localization(int x, int y)
+{
+	radio_value_t v;
+	NETSTACK_RADIO.get_value(RADIO_PARAM_LAST_RSSI,&v);
+	printf("Received RSSI => %d\nFrom ",v);
+	return mass_spring_model_localization();
+}
+/*---------------------------------------------------------------------------*/
+static void 
+Pass_On_Location_Information(rpl_loc_msg_t msg)
+{
+	uip_ipaddr_t addr;
+
+	uip_create_linklocal_allnodes_mcast(&addr);
+	simple_udp_sendto(&udp_connCC, &msg, sizeof(msg), &addr);	
+
+}
 /*---------------------------------------------------------------------------*/
 static void
 udp_rx_CS_callback(struct simple_udp_connection *c,
@@ -32,7 +56,6 @@ udp_rx_CS_callback(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
-	uip_ipaddr_t addr;
 	rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
 
 	if (msg.Msg_Type == Location_Info)
@@ -43,17 +66,14 @@ udp_rx_CS_callback(struct simple_udp_connection *c,
 			//msg.x = loc_x;
 			//msg.y = loc_y;			
 			
-			radio_value_t v;
-			NETSTACK_RADIO.get_value(RADIO_PARAM_LAST_RSSI,&v);
-			printf("Received RSSI => %d\nFrom ",v);
+			Do_Mass_Spring_Model_Localization(msg.x, msg.y);
 			LOG_INFO_6ADDR(sender_addr);
 			LOG_INFO_("\n");
 
 			printf("My bc_time is %d\n", bc_time);
 			printf("My x, y is %d, %d\n", loc_x, loc_y);
 
-			uip_create_linklocal_allnodes_mcast(&addr);
-			simple_udp_sendto(&udp_connCC, &msg, sizeof(msg), &addr);
+			Pass_On_Location_Information(msg);
 		}
 	}
 
@@ -69,7 +89,6 @@ udp_rx_CC_callback(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
-	uip_ipaddr_t addr;
 	rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
 
 	if (msg.Msg_Type == Location_Info)
@@ -80,21 +99,16 @@ udp_rx_CC_callback(struct simple_udp_connection *c,
 			//msg.x = loc_x;
 			//msg.y = loc_y;			
 
-			radio_value_t v;
-			NETSTACK_RADIO.get_value(RADIO_PARAM_LAST_RSSI,&v);
-			printf("Received RSSI => %d\nFrom ",v);
+			Do_Mass_Spring_Model_Localization(msg.x, msg.y);
 			LOG_INFO_6ADDR(sender_addr);
 			LOG_INFO_("\n");
 
 			printf("My bc_time is %d\n", bc_time);
 			printf("My x, y is %d, %d\n", loc_x, loc_y);
 
-			uip_create_linklocal_allnodes_mcast(&addr);
-			simple_udp_sendto(&udp_connCC, &msg, sizeof(msg), &addr);
+			Pass_On_Location_Information(msg);
 		}
 	}
-
-
 
 }
 /*---------------------------------------------------------------------------*/
@@ -132,6 +146,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
 		LOG_INFO_("\n");
 		msg.x = loc_x;
 		msg.y = loc_y;
+		msg.Msg_Type = Location_Info_From_Client;
 		simple_udp_sendto(&udp_connCS, &msg, sizeof(msg), &dest_ipaddr);
 	} 
 	else 
