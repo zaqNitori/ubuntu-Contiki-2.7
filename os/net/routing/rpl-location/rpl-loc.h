@@ -26,7 +26,6 @@ typedef struct
 }rpl_loc_msg_t;
 
 uip_ipaddr_t BRaddr;
-short start = 0;
 int loc_x;
 int loc_y;
 int bc_time;

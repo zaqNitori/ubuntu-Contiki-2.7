@@ -18,7 +18,7 @@
 
 static struct simple_udp_connection udp_connCS;
 static struct simple_udp_connection udp_connCC;
-
+static int begin = 0;
 /*---------------------------------------------------------------------------*/
 PROCESS(udp_client_process, "UDP client");
 AUTOSTART_PROCESSES(&udp_client_process);
@@ -117,12 +117,12 @@ PROCESS_THREAD(udp_client_process, ev, data)
 	static struct etimer periodic_timer;
 	uip_ipaddr_t dest_ipaddr;
 	rpl_loc_msg_t msg;
-	if(!start)
+	if(!begin)
 	{
 		bc_time = 100;
 		loc_x = random_rand() % 101;
 		loc_y = random_rand() % 101;
-		start = 1;
+		begin = 1;
 	}
 
 	PROCESS_BEGIN();
