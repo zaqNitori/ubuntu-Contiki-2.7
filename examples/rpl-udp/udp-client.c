@@ -13,7 +13,7 @@
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
 
-#define SEND_MASS_SPRING_REQUEST_INFO_INTERVAL (20 * CLOCK_SECOND)
+#define SEND_MASS_SPRING_REQUEST_INFO_INTERVAL (15 * CLOCK_SECOND)
 #define SEND_LOCATION_INFO_TO_SERVER_INTERVAL (30 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_connCS;
@@ -33,7 +33,7 @@ Do_Mass_Spring_Model_Localization(int x, int y)
 {
 	radio_value_t v;
 	NETSTACK_RADIO.get_value(RADIO_PARAM_LAST_RSSI,&v);
-	printf("Received RSSI => %d\nFrom ",v);
+	LOG_INFO_("Received RSSI => %d\nFrom ",v);
 	return mass_spring_model_localization();
 }
 /*---------------------------------------------------------------------------*/
@@ -70,8 +70,8 @@ udp_rx_CS_callback(struct simple_udp_connection *c,
 			LOG_INFO_6ADDR(sender_addr);
 			LOG_INFO_("\n");
 
-			printf("My bc_time is %d\n", bc_time);
-			printf("My x, y is %d, %d\n", loc_x, loc_y);
+			LOG_INFO_("My bc_time is %d\n", bc_time);
+			LOG_INFO_("My x, y is %d, %d\n", loc_x, loc_y);
 
 			Pass_On_Location_Information(msg);
 		}
@@ -103,19 +103,37 @@ udp_rx_CC_callback(struct simple_udp_connection *c,
 			LOG_INFO_6ADDR(sender_addr);
 			LOG_INFO_("\n");
 
-			printf("My bc_time is %d\n", bc_time);
-			printf("My x, y is %d, %d\n", loc_x, loc_y);
+			LOG_INFO_("My bc_time is %d\n", bc_time);
+			LOG_INFO_("My x, y is %d, %d\n", loc_x, loc_y);
 
 			Pass_On_Location_Information(msg);
 		}
 	}
-
+	else if (msg.Msg_Type == MASS_SPRING_REQUEST)
+	{
+		LOG_INFO_("Received MASS_SPRING_REQUEST From ");
+		LOG_INFO_6ADDR(sender_addr);
+		LOG_INFO_("\n");
+		msg.x = loc_x;
+		msg.y = loc_y;
+		msg.Msg_Type = MASS_SPRING_CALLBACK;
+		simple_udp_sendto(&udp_connCC, &msg, sizeof(msg), sender_addr);
+	}
+	else if (msg.Msg_Type == MASS_SPRING_CALLBACK)
+	{
+		LOG_INFO_("Received MASS_SPRING_CALLBACK From ");
+		LOG_INFO_6ADDR(sender_addr);
+		LOG_INFO_("\n");
+		Do_Mass_Spring_Model_Localization(msg.x, msg.y);
+	}
 }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(udp_client_process, ev, data)
 {
 	static struct etimer periodic_timer;
+	static struct etimer mass_spring_timer;
 	uip_ipaddr_t dest_ipaddr;
+	uip_ipaddr_t addr;
 	rpl_loc_msg_t msg;
 	if(!begin)
 	{
@@ -135,29 +153,38 @@ PROCESS_THREAD(udp_client_process, ev, data)
 
 
 	etimer_set(&periodic_timer, SEND_LOCATION_INFO_TO_SERVER_INTERVAL);
-	while(1) {
-	PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-
-	if(NETSTACK_ROUTING.node_is_reachable() && NETSTACK_ROUTING.get_root_ipaddr(&dest_ipaddr)) 
+	etimer_set(&mass_spring_timer, SEND_MASS_SPRING_REQUEST_INFO_INTERVAL);
+	while(1) 
 	{
-		/* Send to DAG root */
-		LOG_INFO("Sending Location Info X,Y => %d, %d\nTo ", loc_x, loc_y);
-		LOG_INFO_6ADDR(&dest_ipaddr);
-		LOG_INFO_("\n");
-		msg.x = loc_x;
-		msg.y = loc_y;
-		msg.Msg_Type = Location_Info_From_Client;
-		simple_udp_sendto(&udp_connCS, &msg, sizeof(msg), &dest_ipaddr);
-	} 
-	else 
-	{
-		LOG_INFO("Not reachable yet\n");
-	}
+		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer) || etimer_expired(&mass_spring_timer));
+		if(etimer_expired(&periodic_timer))
+		{
+			if(NETSTACK_ROUTING.node_is_reachable() && NETSTACK_ROUTING.get_root_ipaddr(&dest_ipaddr)) 
+			{
+				//Send to DAG root
+				LOG_INFO("Sending Location Info X,Y => %d, %d\nTo ", loc_x, loc_y);
+				LOG_INFO_6ADDR(&dest_ipaddr);
+				LOG_INFO_("\n");
+				msg.x = loc_x;
+				msg.y = loc_y;
+				msg.Msg_Type = Location_Info_From_Client;
+				simple_udp_sendto(&udp_connCS, &msg, sizeof(msg), &dest_ipaddr);
+			} 
+			else 
+			{
+				LOG_INFO("Not reachable yet\n");
+			}
+			etimer_set(&periodic_timer, SEND_LOCATION_INFO_TO_SERVER_INTERVAL);
+		}
 
-		/* Add some jitter */
-		//etimer_set(&periodic_timer, SEND_LOCATION_INFO_TO_SERVER_INTERVAL
-	  	//- CLOCK_SECOND + (random_rand() % (2 * CLOCK_SECOND)));
-		etimer_set(&periodic_timer, SEND_LOCATION_INFO_TO_SERVER_INTERVAL);
+		if(etimer_expired(&mass_spring_timer))
+		{
+			LOG_INFO("Sending Mass Spring Request Info To Nearby People\n");
+			msg.Msg_Type = MASS_SPRING_REQUEST;
+			uip_create_linklocal_allnodes_mcast(&addr);
+			simple_udp_sendto(&udp_connCC, &msg, sizeof(msg), &addr);
+			etimer_set(&mass_spring_timer, SEND_MASS_SPRING_REQUEST_INFO_INTERVAL);
+		}
 	}
 
 	PROCESS_END();
