@@ -1,0 +1,5 @@
+sudo ./tunslip6 -a 127.0.0.1 fd00::1/64
+
+/contiki-ng/tools/serial-io
+
+60001
