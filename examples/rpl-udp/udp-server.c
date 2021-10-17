@@ -41,17 +41,18 @@
 #define WITH_SERVER_REPLY  0
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
+#define UDP_BR_PORT 3333
 
 #define SEND_INTERVAL		  (20 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_connSC;
-static struct simple_udp_connection udp_connSS;
+static struct simple_udp_connection udp_connSBR;
 
 PROCESS(udp_server_process, "UDP server");
 AUTOSTART_PROCESSES(&udp_server_process);
 /*---------------------------------------------------------------------------*/
 static void
-udp_rx_SS_callback(struct simple_udp_connection *c,
+udp_rx_SBR_callback(struct simple_udp_connection *c,
          const uip_ipaddr_t *sender_addr,
          uint16_t sender_port,
          const uip_ipaddr_t *receiver_addr,
@@ -97,8 +98,8 @@ PROCESS_THREAD(udp_server_process, ev, data)
 	//NETSTACK_ROUTING.root_start();
 
 	/* Initialize UDP connection */
-	simple_udp_register(&udp_connSS, UDP_SERVER_PORT, NULL,
-                      UDP_SERVER_PORT, udp_rx_SS_callback);
+	simple_udp_register(&udp_connSBR, UDP_SERVER_PORT, NULL,
+                      UDP_BR_PORT, udp_rx_SBR_callback);
 	simple_udp_register(&udp_connSC, UDP_SERVER_PORT, NULL,
 		              UDP_CLIENT_PORT, udp_rx_SC_callback);
 

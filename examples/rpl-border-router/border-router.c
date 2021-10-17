@@ -42,8 +42,9 @@
 
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
+#define UDP_BR_PORT 3333
 static struct simple_udp_connection udp_connSC;
-static struct simple_udp_connection udp_connSS;
+static struct simple_udp_connection udp_connBRS;
 #define SEND_INTERVAL		  (30 * CLOCK_SECOND)
 
 
@@ -52,7 +53,7 @@ PROCESS(contiki_ng_br, "Contiki-NG Border Router");
 AUTOSTART_PROCESSES(&contiki_ng_br);
 /*---------------------------------------------------------------------------*/
 static void
-udp_rx_SS_callback(struct simple_udp_connection *c,
+udp_rx_BRS_callback(struct simple_udp_connection *c,
          const uip_ipaddr_t *sender_addr,
          uint16_t sender_port,
          const uip_ipaddr_t *receiver_addr,
@@ -99,8 +100,8 @@ PROCESS_THREAD(contiki_ng_br, ev, data)
 		process_start(&webserver_nogui_process, NULL);
 	#endif /* BORDER_ROUTER_CONF_WEBSERVER */
 
-	simple_udp_register(&udp_connSS, UDP_SERVER_PORT, NULL,
-                      UDP_SERVER_PORT, udp_rx_SS_callback);
+	simple_udp_register(&udp_connBRS, UDP_BR_PORT, NULL,
+                      UDP_SERVER_PORT, udp_rx_BRS_callback);
 	simple_udp_register(&udp_connSC, UDP_SERVER_PORT, NULL,
 		              UDP_CLIENT_PORT, udp_rx_SC_callback);
 
