@@ -42,13 +42,28 @@
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
 
-#define SEND_INTERVAL		  (60 * CLOCK_SECOND)
+#define SEND_INTERVAL		  (20 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_connSC;
+static struct simple_udp_connection udp_connSS;
 
 PROCESS(udp_server_process, "UDP server");
 AUTOSTART_PROCESSES(&udp_server_process);
+/*---------------------------------------------------------------------------*/
+static void
+udp_rx_SS_callback(struct simple_udp_connection *c,
+         const uip_ipaddr_t *sender_addr,
+         uint16_t sender_port,
+         const uip_ipaddr_t *receiver_addr,
+         uint16_t receiver_port,
+         const uint8_t *data,
+         uint16_t datalen)
+{
+	LOG_INFO("Received Msg \nFrom ");
+	LOG_INFO_6ADDR(sender_addr);
+	LOG_INFO_("\n");
 
+}
 /*---------------------------------------------------------------------------*/
 static void
 udp_rx_SC_callback(struct simple_udp_connection *c,
@@ -82,6 +97,8 @@ PROCESS_THREAD(udp_server_process, ev, data)
 	//NETSTACK_ROUTING.root_start();
 
 	/* Initialize UDP connection */
+	simple_udp_register(&udp_connSS, UDP_SERVER_PORT, NULL,
+                      UDP_SERVER_PORT, udp_rx_SS_callback);
 	simple_udp_register(&udp_connSC, UDP_SERVER_PORT, NULL,
 		              UDP_CLIENT_PORT, udp_rx_SC_callback);
 
@@ -93,7 +110,7 @@ PROCESS_THREAD(udp_server_process, ev, data)
 		LOG_INFO("Sending Location Information\n");
 
 		uip_create_linklocal_allnodes_mcast(&addr);
-			simple_udp_sendto(&udp_connSC, &msg, sizeof(msg), &addr);
+		simple_udp_sendto(&udp_connSC, &msg, sizeof(msg), &addr);
 
 		etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL); 
 	}

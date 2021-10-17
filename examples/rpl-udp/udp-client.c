@@ -4,6 +4,7 @@
 #include "net/netstack.h"
 #include "net/ipv6/simple-udp.h"
 #include "net/routing/rpl-location/rpl-loc.h"
+#include <math.h>
 
 #include "sys/log.h"
 #define LOG_MODULE "App"
@@ -25,13 +26,14 @@ AUTOSTART_PROCESSES(&udp_client_process);
 /*---------------------------------------------------------------------------*/
 static double mass_spring_model_localization(radio_value_t rss)
 {
-	double f, distance;
+	double f=0;
+	double distance;
 	f = ((double)P_0 - (double)rss) / (double)(gama);
 	distance = expf( f * (double)LOG_e10);
 	return distance;
 }
 /*---------------------------------------------------------------------------*/
-static double 
+static int 
 Do_Mass_Spring_Model_Localization(int x, int y)
 {
 	radio_value_t v;
@@ -60,7 +62,9 @@ udp_rx_CS_callback(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
+
 	double dis;
+	int disI;
 	rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
 
 	if (msg.Msg_Type == Location_Info)
@@ -72,9 +76,10 @@ udp_rx_CS_callback(struct simple_udp_connection *c,
 			//msg.y = loc_y;			
 			
 			dis = Do_Mass_Spring_Model_Localization(msg.x, msg.y);
+			disI = dis * 1000;
 			LOG_INFO_6ADDR(sender_addr);
 			LOG_INFO_("\n");
-			LOG_INFO("Distance %fm\n", dis);
+			LOG_INFO("Distance %dm\n", disI);
 
 			LOG_INFO_("My bc_time is %d\n", bc_time);
 			LOG_INFO_("My x, y is %d, %d\n", loc_x, loc_y);
@@ -96,6 +101,7 @@ udp_rx_CC_callback(struct simple_udp_connection *c,
          uint16_t datalen)
 {
 	double dis;
+	int disI;
 	rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
 
 	if (msg.Msg_Type == Location_Info)
@@ -107,9 +113,10 @@ udp_rx_CC_callback(struct simple_udp_connection *c,
 			//msg.y = loc_y;			
 
 			dis = Do_Mass_Spring_Model_Localization(msg.x, msg.y);
+			disI = dis * 1000;
 			LOG_INFO_6ADDR(sender_addr);
 			LOG_INFO_("\n");
-			LOG_INFO("Distance %fm\n", dis);
+			LOG_INFO("Distance %dm\n", disI);
 
 			LOG_INFO_("My bc_time is %d\n", bc_time);
 			LOG_INFO_("My x, y is %d, %d\n", loc_x, loc_y);
