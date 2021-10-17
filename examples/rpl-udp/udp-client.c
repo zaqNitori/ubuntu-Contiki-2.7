@@ -25,6 +25,7 @@ AUTOSTART_PROCESSES(&udp_client_process);
 /*---------------------------------------------------------------------------*/
 static double mass_spring_model_localization(radio_value_t rss)
 {
+	double f, distance;
 	f = ((double)P_0 - (double)rss) / (double)(gama);
 	distance = expf( f * (double)LOG_e10);
 	return distance;
