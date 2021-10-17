@@ -77,11 +77,14 @@ udp_rx_BRC_callback(struct simple_udp_connection *c,
          uint16_t datalen)
 {
 
-	rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
-
-	LOG_INFO("Received Location Info X,Y => %d, %d\nFrom ", msg.x, msg.y);
-	LOG_INFO_6ADDR(sender_addr);
-	LOG_INFO_("\n");
+	int msg_x, msg_y, msg_type, msg_bc;
+	GetMsg((char*)data, &msg_x, &msg_y, &msg_type, &msg_bc);
+	if(msg_type == Location_Info_From_Client)
+	{
+		LOG_INFO("Received Location Info X,Y => %d, %d\nFrom ", msg_x, msg_y);
+		LOG_INFO_6ADDR(sender_addr);
+		LOG_INFO_("\n");
+	}
 
 }
 
