@@ -43,7 +43,7 @@
 #define UDP_SERVER_PORT	5678
 #define UDP_BR_PORT 3333
 
-#define SEND_INTERVAL		  (20 * CLOCK_SECOND)
+#define SEND_INTERVAL		  (10 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_connSC;
 static struct simple_udp_connection udp_connSBR;
@@ -88,7 +88,7 @@ PROCESS_THREAD(udp_server_process, ev, data)
 	uip_ipaddr_t addr;
 	static struct etimer periodic_timer;
 	char buf[30];
-	loc_x = loc_y = 1;
+	loc_x = loc_y = 30;
 	bc_time = 0;
 	
 

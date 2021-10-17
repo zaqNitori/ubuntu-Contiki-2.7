@@ -15,7 +15,7 @@
 #define UDP_SERVER_PORT	5678
 #define UDP_BR_PORT 3333
 
-#define SEND_MASS_SPRING_REQUEST_INFO_INTERVAL (15 * CLOCK_SECOND)
+#define SEND_MASS_SPRING_REQUEST_INFO_INTERVAL (25 * CLOCK_SECOND)
 #define SEND_LOCATION_INFO_TO_SERVER_INTERVAL (30 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_connCS;
@@ -171,9 +171,10 @@ PROCESS_THREAD(udp_client_process, ev, data)
 	if(!begin)
 	{
 		bc_time = 100;
-		loc_x = (random_rand() % 101) * 1000;
-		loc_y = (random_rand() % 101) * 1000;
+		loc_x = (random_rand() % 51) * 1000;
+		loc_y = (random_rand() % 51) * 1000;
 		begin = 1;
+		LOG_INFO_("%d,%d\n",loc_x,loc_y);
 	}
 
 	PROCESS_BEGIN();
