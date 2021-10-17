@@ -23,18 +23,21 @@ static int begin = 0;
 PROCESS(udp_client_process, "UDP client");
 AUTOSTART_PROCESSES(&udp_client_process);
 /*---------------------------------------------------------------------------*/
-static int mass_spring_model_localization()
+static double mass_spring_model_localization(radio_value_t rss)
 {
-	return 1;
+	f = ((double)P_0 - (double)rss) / (double)(gama);
+	distance = expf( f * (double)LOG_e10);
+	return distance;
 }
 /*---------------------------------------------------------------------------*/
-static int 
+static double 
 Do_Mass_Spring_Model_Localization(int x, int y)
 {
 	radio_value_t v;
 	NETSTACK_RADIO.get_value(RADIO_PARAM_LAST_RSSI,&v);
 	LOG_INFO_("Received RSSI => %d\nFrom ",v);
-	return mass_spring_model_localization();
+	double dis = mass_spring_model_localization(v);
+	return dis;
 }
 /*---------------------------------------------------------------------------*/
 static void 
@@ -56,6 +59,7 @@ udp_rx_CS_callback(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
+	double dis;
 	rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
 
 	if (msg.Msg_Type == Location_Info)
@@ -66,9 +70,10 @@ udp_rx_CS_callback(struct simple_udp_connection *c,
 			//msg.x = loc_x;
 			//msg.y = loc_y;			
 			
-			Do_Mass_Spring_Model_Localization(msg.x, msg.y);
+			dis = Do_Mass_Spring_Model_Localization(msg.x, msg.y);
 			LOG_INFO_6ADDR(sender_addr);
 			LOG_INFO_("\n");
+			LOG_INFO("Distance %fm\n", dis);
 
 			LOG_INFO_("My bc_time is %d\n", bc_time);
 			LOG_INFO_("My x, y is %d, %d\n", loc_x, loc_y);
@@ -89,6 +94,7 @@ udp_rx_CC_callback(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
+	double dis;
 	rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
 
 	if (msg.Msg_Type == Location_Info)
@@ -99,9 +105,10 @@ udp_rx_CC_callback(struct simple_udp_connection *c,
 			//msg.x = loc_x;
 			//msg.y = loc_y;			
 
-			Do_Mass_Spring_Model_Localization(msg.x, msg.y);
+			dis = Do_Mass_Spring_Model_Localization(msg.x, msg.y);
 			LOG_INFO_6ADDR(sender_addr);
 			LOG_INFO_("\n");
+			LOG_INFO("Distance %fm\n", dis);
 
 			LOG_INFO_("My bc_time is %d\n", bc_time);
 			LOG_INFO_("My x, y is %d, %d\n", loc_x, loc_y);
