@@ -2,6 +2,8 @@
 #ifndef RPL_LOC_H
 #define RPL_LOC_H
 #include "net/ipv6/uip.h"
+#include "stdlib.h"
+#include "stdio.h"
 
 //test for mass_spring_model_localization 
 #define P_0      -44.06//-44.06
@@ -30,5 +32,32 @@ uip_ipaddr_t BRaddr;
 int loc_x;
 int loc_y;
 int bc_time;
+
+void ConvertToMsg(char *buf, int x, int y)
+{
+	sprintf( buf, "%d,%d", x, y);
+}
+
+void split(char **arr, char *str, const char *del) 
+{
+	char *s = strtok(str, del);
+
+	while(s != NULL) 
+	{
+		*arr++ = s;
+		s = strtok(NULL, del);
+	}
+}
+
+void GetXY(char *str, int *x, int *y)
+{
+	char *arr[2];
+	split( arr, str, ",");
+	*x = atoi(*arr);
+	*y = atoi(*(arr+1));
+}
+
+
+
 
 #endif /* RPL_LOC_H */
