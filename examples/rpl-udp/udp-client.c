@@ -13,11 +13,13 @@
 #define WITH_SERVER_REPLY  1
 #define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
+#define UDP_BR_PORT 3333
 
 #define SEND_MASS_SPRING_REQUEST_INFO_INTERVAL (15 * CLOCK_SECOND)
 #define SEND_LOCATION_INFO_TO_SERVER_INTERVAL (30 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_connCS;
+static struct simple_udp_connection udp_connCBR;
 static struct simple_udp_connection udp_connCC;
 static int begin = 0;
 /*---------------------------------------------------------------------------*/
@@ -50,6 +52,18 @@ Pass_On_Location_Information(rpl_loc_msg_t msg)
 
 	uip_create_linklocal_allnodes_mcast(&addr);
 	simple_udp_sendto(&udp_connCC, &msg, sizeof(msg), &addr);	
+
+}
+/*---------------------------------------------------------------------------*/
+static void
+udp_rx_CBR_callback(struct simple_udp_connection *c,
+         const uip_ipaddr_t *sender_addr,
+         uint16_t sender_port,
+         const uip_ipaddr_t *receiver_addr,
+         uint16_t receiver_port,
+         const uint8_t *data,
+         uint16_t datalen)
+{
 
 }
 /*---------------------------------------------------------------------------*/
@@ -163,6 +177,8 @@ PROCESS_THREAD(udp_client_process, ev, data)
 	/* Initialize UDP connection */
 	simple_udp_register(&udp_connCS, UDP_CLIENT_PORT, NULL,
 		              UDP_SERVER_PORT, udp_rx_CS_callback);
+	simple_udp_register(&udp_connCBR, UDP_CLIENT_PORT, NULL,
+		              UDP_BR_PORT, udp_rx_CBR_callback);
 	simple_udp_register(&udp_connCC, UDP_CLIENT_PORT, NULL,
 		              UDP_CLIENT_PORT, udp_rx_CC_callback);
 
@@ -183,7 +199,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
 				msg.x = loc_x;
 				msg.y = loc_y;
 				msg.Msg_Type = Location_Info_From_Client;
-				simple_udp_sendto(&udp_connCS, &msg, sizeof(msg), &dest_ipaddr);
+				simple_udp_sendto(&udp_connCBR, &msg, sizeof(msg), &dest_ipaddr);
 			} 
 			else 
 			{
