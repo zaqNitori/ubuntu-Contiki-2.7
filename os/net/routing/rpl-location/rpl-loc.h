@@ -33,9 +33,9 @@ int loc_x;
 int loc_y;
 int bc_time;
 
-void ConvertToMsg(char *buf, int x, int y)
+void ConvertToMsg(char *buf, int x, int y, int type, int bc_time)
 {
-	sprintf( buf, "%d,%d", x, y);
+	sprintf( buf, "%d,%d,%d,%d", x, y, type, bc_time);
 }
 
 void split(char **arr, char *str, const char *del) 
@@ -49,12 +49,14 @@ void split(char **arr, char *str, const char *del)
 	}
 }
 
-void GetXY(char *str, int *x, int *y)
+void GetMsg(char *str, int *x, int *y, int *type, int *bc_time)
 {
-	char *arr[2];
+	char *arr[4];
 	split( arr, str, ",");
 	*x = atoi(*arr);
 	*y = atoi(*(arr+1));
+	*type = atoi(*(arr+2));
+	*bc_time = atoi(*(arr+3));
 }
 
 
