@@ -45,28 +45,9 @@
 #define SEND_INTERVAL		  (60 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_connSC;
-static struct simple_udp_connection udp_connSS;
-uip_ipaddr_t BRaddr;
-static int ok = 0;
 
 PROCESS(udp_server_process, "UDP server");
 AUTOSTART_PROCESSES(&udp_server_process);
-
-/*---------------------------------------------------------------------------*/
-static void
-udp_rx_SS_callback(struct simple_udp_connection *c,
-         const uip_ipaddr_t *sender_addr,
-         uint16_t sender_port,
-         const uip_ipaddr_t *receiver_addr,
-         uint16_t receiver_port,
-         const uint8_t *data,
-         uint16_t datalen)
-{
-
-	BRaddr = *sender_addr;
-	ok = 1;
-
-}
 
 /*---------------------------------------------------------------------------*/
 static void
@@ -78,22 +59,10 @@ udp_rx_SC_callback(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
-
-	rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
-	if(ok)
-	{
-		if(msg.Msg_Type == Location_Info_From_Client)
-		{
-			msg.addr = *sender_addr;
-			simple_udp_sendto(&udp_connSS, &msg, sizeof(msg), &BRaddr);
-		}
-	}
-
-	#if WITH_SERVER_REPLY
-		/* send back the same string to the client as an echo reply */
-		LOG_INFO("Sending response.\n");
-		simple_udp_sendto(&udp_conn, data, datalen, sender_addr);
-	#endif /* WITH_SERVER_REPLY */
+	LOG_INFO("Received Msg \nFrom ");
+	LOG_INFO_6ADDR(sender_addr);
+	LOG_INFO_("\n");
+	
 }
 
 /*---------------------------------------------------------------------------*/
@@ -110,20 +79,18 @@ PROCESS_THREAD(udp_server_process, ev, data)
 	PROCESS_BEGIN();
 
 	/* Initialize DAG root */
-	NETSTACK_ROUTING.root_start();
+	//NETSTACK_ROUTING.root_start();
 
 	/* Initialize UDP connection */
 	simple_udp_register(&udp_connSC, UDP_SERVER_PORT, NULL,
 		              UDP_CLIENT_PORT, udp_rx_SC_callback);
-	simple_udp_register(&udp_connSS, UDP_SERVER_PORT, NULL,
-		              UDP_SERVER_PORT, udp_rx_SS_callback);
 
 	etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL);
 
 	while(1)
 	{
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-		LOG_INFO("Sending message\n");
+		LOG_INFO("Sending Location Information\n");
 
 		uip_create_linklocal_allnodes_mcast(&addr);
 			simple_udp_sendto(&udp_connSC, &msg, sizeof(msg), &addr);

@@ -40,8 +40,9 @@
 #define LOG_LEVEL LOG_LEVEL_INFO
 #include "net/routing/rpl-location/rpl-loc.h"
 
+#define UDP_CLIENT_PORT	8765
 #define UDP_SERVER_PORT	5678
-static struct simple_udp_connection udp_connSS;
+static struct simple_udp_connection udp_connSC;
 #define SEND_INTERVAL		  (30 * CLOCK_SECOND)
 
 
@@ -51,7 +52,7 @@ AUTOSTART_PROCESSES(&contiki_ng_br);
 
 /*---------------------------------------------------------------------------*/
 static void
-udp_rx_SS_callback(struct simple_udp_connection *c,
+udp_rx_SC_callback(struct simple_udp_connection *c,
          const uip_ipaddr_t *sender_addr,
          uint16_t sender_port,
          const uip_ipaddr_t *receiver_addr,
@@ -63,7 +64,7 @@ udp_rx_SS_callback(struct simple_udp_connection *c,
 	rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
 
 	LOG_INFO("Received Location Info X,Y => %d, %d\nFrom ", msg.x, msg.y);
-	LOG_INFO_6ADDR(&msg.addr);
+	LOG_INFO_6ADDR(sender_addr);
 	LOG_INFO_("\n");
 
 }
@@ -74,7 +75,6 @@ PROCESS_THREAD(contiki_ng_br, ev, data)
 {
 	static struct etimer periodic_timer;
 	uip_ipaddr_t addr;
-	static int msg = 1;
 
 	PROCESS_BEGIN();
 
@@ -85,8 +85,8 @@ PROCESS_THREAD(contiki_ng_br, ev, data)
 	#endif /* BORDER_ROUTER_CONF_WEBSERVER */
 
 
-	simple_udp_register(&udp_connSS, UDP_SERVER_PORT, NULL,
-		              UDP_SERVER_PORT, udp_rx_SS_callback);
+	simple_udp_register(&udp_connSC, UDP_SERVER_PORT, NULL,
+		              UDP_CLIENT_PORT, udp_rx_SC_callback);
 
 	LOG_INFO("Contiki-NG Border Router started\n");
 
@@ -96,8 +96,6 @@ PROCESS_THREAD(contiki_ng_br, ev, data)
 	{
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
 		uip_create_linklocal_allnodes_mcast(&addr);
-			simple_udp_sendto(&udp_connSS, &msg, sizeof(msg), &addr);
-		printf(" send addr\n");
 		etimer_set(&periodic_timer, SEND_INTERVAL); 
 	}
 
