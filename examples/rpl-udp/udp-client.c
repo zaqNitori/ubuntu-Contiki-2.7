@@ -215,7 +215,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
 			LOG_INFO("Sending Mass Spring Request Info To Nearby People\n");
 			uip_create_linklocal_allnodes_mcast(&addr);
 			ConvertToMsg(buf, loc_x, loc_y, MASS_SPRING_REQUEST, bc_time);
-			simple_udp_sendto(&udp_connCC, &msg, sizeof(msg), &addr);
+			simple_udp_sendto(&udp_connCC, &buf, sizeof(buf), &addr);
 			etimer_set(&mass_spring_timer, SEND_MASS_SPRING_REQUEST_INFO_INTERVAL);
 		}
 	}
