@@ -6,8 +6,8 @@
 #include "stdio.h"
 
 //test for mass_spring_model_localization 
-#define P_0      -44.06//-44.06
-#define gama     24.13//24.13
+#define P_0      -62.3204
+#define gama     26.575
 #define STD      1.62 // cc2538dk
 #define LOG_e10  2.302585092994L // log_e (10)
 
