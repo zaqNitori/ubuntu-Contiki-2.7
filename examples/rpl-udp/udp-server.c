@@ -87,9 +87,9 @@ PROCESS_THREAD(udp_server_process, ev, data)
 
 	uip_ipaddr_t addr;
 	static struct etimer periodic_timer;
-	rpl_loc_msg_t msg;
-	msg.x = msg.y = msg.bc_time = 0;
-	msg.Msg_Type = Location_Info;
+	char buf[30];
+	loc_x = loc_y = 1;
+	bc_time = 0;
 	
 
 	PROCESS_BEGIN();
@@ -110,8 +110,9 @@ PROCESS_THREAD(udp_server_process, ev, data)
 		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
 		LOG_INFO("Sending Location Information\n");
 
+		ConvertToMsg(buf, loc_x * 1000, loc_y * 1000, Location_Info, bc_time);
 		uip_create_linklocal_allnodes_mcast(&addr);
-		simple_udp_sendto(&udp_connSC, &msg, sizeof(msg), &addr);
+		simple_udp_sendto(&udp_connSC, &buf, sizeof(buf), &addr);
 
 		etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL); 
 	}

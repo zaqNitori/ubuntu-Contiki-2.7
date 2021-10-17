@@ -35,24 +35,37 @@ static double mass_spring_model_localization(radio_value_t rss)
 	return distance;
 }
 /*---------------------------------------------------------------------------*/
-static int 
-Do_Mass_Spring_Model_Localization(int x, int y)
+static double GetDistance(double dx, double dy)
 {
-	radio_value_t v;
-	NETSTACK_RADIO.get_value(RADIO_PARAM_LAST_RSSI,&v);
-	LOG_INFO_("Received RSSI => %d\nFrom ",v);
-	double dis = mass_spring_model_localization(v);
+	double dis = sqrt(pow(((loc_x * 1.0 / 1000) - dx),2) + pow(((loc_y * 1.0 / 1000) - dy),2));
 	return dis;
 }
 /*---------------------------------------------------------------------------*/
 static void 
-Pass_On_Location_Information(rpl_loc_msg_t msg)
+Do_Mass_Spring_Model_Localization(double dx, double dy)
 {
+	radio_value_t v;
+	NETSTACK_RADIO.get_value(RADIO_PARAM_LAST_RSSI,&v);
+	LOG_INFO_("Received RSSI => %d\nFrom ",v);
+	double rssi_dis = mass_spring_model_localization(v);
+	double location_dis = GetDistance(dx, dy);
+
+	double diff_x = ((loc_x * 1.0 / 1000) - dx) * rssi_dis / location_dis;
+	double diff_y = ((loc_y * 1.0 / 1000) - dy) * rssi_dis / location_dis;
+
+	loc_x = (dx + diff_x) * 1000;
+	loc_y = (dy + diff_y) * 1000;
+}
+/*---------------------------------------------------------------------------*/
+static void 
+Pass_On_Location_Information()
+{
+	char buf[30];
 	uip_ipaddr_t addr;
-
+	
+	ConvertToMsg(buf, loc_x, loc_y, Location_Info, bc_time);
 	uip_create_linklocal_allnodes_mcast(&addr);
-	simple_udp_sendto(&udp_connCC, &msg, sizeof(msg), &addr);	
-
+	simple_udp_sendto(&udp_connCC, &buf, sizeof(buf), &addr);	
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -76,32 +89,27 @@ udp_rx_CS_callback(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
+	int msg_x, msg_y, msg_type, msg_bc;
+	GetMsg((char*)data, &msg_x, &msg_y, &msg_type, &msg_bc);
+	double dx = msg_x * 1.0 / 1000;
+	double dy = msg_y * 1.0 / 1000;	
 
-	double dis;
-	int disI;
-	rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
-
-	if (msg.Msg_Type == Location_Info)
+	if (msg_type == Location_Info)
 	{
-		if (msg.bc_time < bc_time)
+		if (msg_bc < bc_time)
 		{
-			bc_time = ++msg.bc_time;
-			//msg.x = loc_x;
-			//msg.y = loc_y;			
-			
-			dis = Do_Mass_Spring_Model_Localization(msg.x, msg.y);
-			disI = dis * 1000;
+			bc_time = ++msg_bc;		
+
+			Do_Mass_Spring_Model_Localization(dx, dy);
 			LOG_INFO_6ADDR(sender_addr);
 			LOG_INFO_("\n");
-			LOG_INFO("Distance %dm\n", disI);
 
 			LOG_INFO_("My bc_time is %d\n", bc_time);
 			LOG_INFO_("My x, y is %d, %d\n", loc_x, loc_y);
 
-			Pass_On_Location_Information(msg);
+			Pass_On_Location_Information();
 		}
 	}
-
 
 }
 /*---------------------------------------------------------------------------*/
@@ -114,46 +122,42 @@ udp_rx_CC_callback(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
-	double dis;
-	int disI;
-	rpl_loc_msg_t msg = *(rpl_loc_msg_t *)data;
+	int msg_x, msg_y, msg_type, msg_bc;
+	GetMsg((char*)data, &msg_x, &msg_y, &msg_type, &msg_bc);
+	double dx = msg_x * 1.0 / 1000;
+	double dy = msg_y * 1.0 / 1000;	
 
-	if (msg.Msg_Type == Location_Info)
+	if (msg_type == Location_Info)
 	{
-		if (msg.bc_time < bc_time)
+		if (msg_bc < bc_time)
 		{
-			bc_time = ++msg.bc_time;
-			//msg.x = loc_x;
-			//msg.y = loc_y;			
+			bc_time = ++msg_bc;			
 
-			dis = Do_Mass_Spring_Model_Localization(msg.x, msg.y);
-			disI = dis * 1000;
+			Do_Mass_Spring_Model_Localization(dx, dy);
 			LOG_INFO_6ADDR(sender_addr);
 			LOG_INFO_("\n");
-			LOG_INFO("Distance %dm\n", disI);
 
 			LOG_INFO_("My bc_time is %d\n", bc_time);
 			LOG_INFO_("My x, y is %d, %d\n", loc_x, loc_y);
 
-			Pass_On_Location_Information(msg);
+			Pass_On_Location_Information();
 		}
 	}
-	else if (msg.Msg_Type == MASS_SPRING_REQUEST)
+	else if (msg_type == MASS_SPRING_REQUEST)
 	{
+		char buf[30];
 		LOG_INFO_("Received MASS_SPRING_REQUEST From ");
 		LOG_INFO_6ADDR(sender_addr);
 		LOG_INFO_("\n");
-		msg.x = loc_x;
-		msg.y = loc_y;
-		msg.Msg_Type = MASS_SPRING_CALLBACK;
-		simple_udp_sendto(&udp_connCC, &msg, sizeof(msg), sender_addr);
+		ConvertToMsg(buf, loc_x, loc_y, MASS_SPRING_CALLBACK, bc_time);
+		simple_udp_sendto(&udp_connCC, &buf, sizeof(buf), sender_addr);
 	}
-	else if (msg.Msg_Type == MASS_SPRING_CALLBACK)
+	else if (msg_type == MASS_SPRING_CALLBACK)
 	{
 		LOG_INFO_("Received MASS_SPRING_CALLBACK From ");
 		LOG_INFO_6ADDR(sender_addr);
 		LOG_INFO_("\n");
-		Do_Mass_Spring_Model_Localization(msg.x, msg.y);
+		Do_Mass_Spring_Model_Localization(dx, dy);
 	}
 }
 /*---------------------------------------------------------------------------*/
@@ -161,14 +165,14 @@ PROCESS_THREAD(udp_client_process, ev, data)
 {
 	static struct etimer periodic_timer;
 	static struct etimer mass_spring_timer;
+	char buf[30];
 	uip_ipaddr_t dest_ipaddr;
 	uip_ipaddr_t addr;
-	rpl_loc_msg_t msg;
 	if(!begin)
 	{
 		bc_time = 100;
-		loc_x = random_rand() % 101;
-		loc_y = random_rand() % 101;
+		loc_x = (random_rand() % 101) * 1000;
+		loc_y = (random_rand() % 101) * 1000;
 		begin = 1;
 	}
 
@@ -196,10 +200,8 @@ PROCESS_THREAD(udp_client_process, ev, data)
 				LOG_INFO("Sending Location Info X,Y => %d, %d\nTo ", loc_x, loc_y);
 				LOG_INFO_6ADDR(&dest_ipaddr);
 				LOG_INFO_("\n");
-				msg.x = loc_x;
-				msg.y = loc_y;
-				msg.Msg_Type = Location_Info_From_Client;
-				simple_udp_sendto(&udp_connCBR, &msg, sizeof(msg), &dest_ipaddr);
+				ConvertToMsg(buf, loc_x, loc_y, Location_Info_From_Client, bc_time);
+				simple_udp_sendto(&udp_connCBR, &buf, sizeof(buf), &dest_ipaddr);
 			} 
 			else 
 			{
@@ -211,8 +213,8 @@ PROCESS_THREAD(udp_client_process, ev, data)
 		if(etimer_expired(&mass_spring_timer))
 		{
 			LOG_INFO("Sending Mass Spring Request Info To Nearby People\n");
-			msg.Msg_Type = MASS_SPRING_REQUEST;
 			uip_create_linklocal_allnodes_mcast(&addr);
+			ConvertToMsg(buf, loc_x, loc_y, MASS_SPRING_REQUEST, bc_time);
 			simple_udp_sendto(&udp_connCC, &msg, sizeof(msg), &addr);
 			etimer_set(&mass_spring_timer, SEND_MASS_SPRING_REQUEST_INFO_INTERVAL);
 		}
