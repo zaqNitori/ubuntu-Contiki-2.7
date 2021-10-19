@@ -6,8 +6,8 @@
 #include "stdio.h"
 
 //test for mass_spring_model_localization 
-#define P_0      -62.3204
-#define gama     26.575
+#define P_0      -63.17164
+#define gama     21.7409
 #define STD      1.62 // cc2538dk
 #define LOG_e10  2.302585092994L // log_e (10)
 
@@ -18,6 +18,14 @@ typedef enum
 	MASS_SPRING_CALLBACK,
 	Location_Info_From_Client
 }rpl_loc_t;
+
+typedef enum 
+{
+	LOCATION_X,
+	LOCATION_Y,
+	MSG_TYPE,
+	BC_TIME
+}rpl_loc_info_t;
 
 typedef struct
 {
@@ -53,10 +61,10 @@ void GetMsg(char *str, int *x, int *y, int *type, int *bc_time)
 {
 	char *arr[4];
 	split( arr, str, ",");
-	*x = atoi(*arr);
-	*y = atoi(*(arr+1));
-	*type = atoi(*(arr+2));
-	*bc_time = atoi(*(arr+3));
+	*x = atoi(*arr+LOCATION_X);
+	*y = atoi(*(arr+LOCATION_Y));
+	*type = atoi(*(arr+MSG_TYPE));
+	*bc_time = atoi(*(arr+BC_TIME));
 }
 
 
