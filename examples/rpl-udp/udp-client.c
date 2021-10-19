@@ -57,17 +57,6 @@ Do_Mass_Spring_Model_Localization(double dx, double dy)
 	loc_y = (dy + diff_y) * 1000;
 }
 /*---------------------------------------------------------------------------*/
-static void 
-Pass_On_Location_Information()
-{
-	char buf[30];
-	uip_ipaddr_t addr;
-	
-	ConvertToMsg(buf, loc_x, loc_y, Location_Info, bc_time);
-	uip_create_linklocal_allnodes_mcast(&addr);
-	simple_udp_sendto(&udp_connCC, &buf, sizeof(buf), &addr);	
-}
-/*---------------------------------------------------------------------------*/
 static void
 udp_rx_CBR_callback(struct simple_udp_connection *c,
          const uip_ipaddr_t *sender_addr,
@@ -107,7 +96,6 @@ udp_rx_CS_callback(struct simple_udp_connection *c,
 			LOG_INFO_("My bc_time is %d\n", bc_time);
 			LOG_INFO_("My x, y is %d, %d\n", loc_x, loc_y);
 
-			Pass_On_Location_Information();
 		}
 	}
 
@@ -140,7 +128,6 @@ udp_rx_CC_callback(struct simple_udp_connection *c,
 			LOG_INFO_("My bc_time is %d\n", bc_time);
 			LOG_INFO_("My x, y is %d, %d\n", loc_x, loc_y);
 
-			Pass_On_Location_Information();
 		}
 	}
 	else if (msg_type == MASS_SPRING_REQUEST)
