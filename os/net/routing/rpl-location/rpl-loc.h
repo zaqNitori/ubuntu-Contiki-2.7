@@ -16,7 +16,8 @@ typedef enum
 	Location_Info,
 	MASS_SPRING_REQUEST,
 	MASS_SPRING_CALLBACK,
-	Location_Info_From_Client
+	Location_Info_From_Client,
+	Location_Info_From_Server
 }rpl_loc_t;
 
 typedef enum 

@@ -44,6 +44,7 @@
 #define UDP_BR_PORT 3333
 
 #define SEND_INTERVAL		  (10 * CLOCK_SECOND)
+#define SEND_LOCATION_INFO_INTERVAL	(60 * CLOCK_SECOND)
 
 static struct simple_udp_connection udp_connSC;
 static struct simple_udp_connection udp_connSBR;
@@ -86,7 +87,9 @@ PROCESS_THREAD(udp_server_process, ev, data)
 {
 
 	uip_ipaddr_t addr;
+	uip_ipaddr_t dest_ipaddr;
 	static struct etimer periodic_timer;
+	static struct etimer location_info_timer;
 	char buf[30];
 	loc_x = loc_y = 30;
 	bc_time = 0;
@@ -104,17 +107,39 @@ PROCESS_THREAD(udp_server_process, ev, data)
 		              UDP_CLIENT_PORT, udp_rx_SC_callback);
 
 	etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL);
+	etimer_set(&location_info_timer, random_rand() % SEND_LOCATION_INFO_INTERVAL);
 
 	while(1)
 	{
-		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
-		LOG_INFO("Sending Location Information\n");
+		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer) || etimer_expired(&location_info_timer));
+		if(etimer_expired(&location_info_timer))
+		{
+			if(NETSTACK_ROUTING.node_is_reachable() && NETSTACK_ROUTING.get_root_ipaddr(&dest_ipaddr)) 
+			{
+				//Send to DAG root
+				LOG_INFO("Sending Location Info X,Y => %d, %d\nTo BR => ", loc_x, loc_y);
+				LOG_INFO_6ADDR(&dest_ipaddr);
+				LOG_INFO_("\n");
+				ConvertToMsg(buf, loc_x, loc_y, Location_Info_From_Server, bc_time);
+				simple_udp_sendto(&udp_connSBR, &buf, sizeof(buf), &dest_ipaddr);
+			} 
+			else 
+			{
+				LOG_INFO("Not reachable yet\n");
+			}
+			etimer_set(&location_info_timer, random_rand() % SEND_LOCATION_INFO_INTERVAL);
+		}
 
-		ConvertToMsg(buf, loc_x * 1000, loc_y * 1000, Location_Info, bc_time);
-		uip_create_linklocal_allnodes_mcast(&addr);
-		simple_udp_sendto(&udp_connSC, &buf, sizeof(buf), &addr);
+		if(etimer_expired(&periodic_timer))
+		{
+			LOG_INFO("Sending Location Information\n");
 
-		etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL); 
+			ConvertToMsg(buf, loc_x * 1000, loc_y * 1000, Location_Info, bc_time);
+			uip_create_linklocal_allnodes_mcast(&addr);
+			simple_udp_sendto(&udp_connSC, &buf, sizeof(buf), &addr);
+
+			etimer_set(&periodic_timer, random_rand() % SEND_INTERVAL); 
+		}
 	}
 
 	PROCESS_END();
